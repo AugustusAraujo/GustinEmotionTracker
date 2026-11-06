@@ -15,22 +15,39 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gustinemotiontracker.core.model.MoodEntry
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -40,15 +57,45 @@ private val listDateTime = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    entries: List<MoodEntry>,
     onExportClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: MoodTrackerViewModel = viewModel()
 ) {
+    val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    fun deleteWithUndo(entry: MoodEntry) {
+        viewModel.deleteEntry(entry)
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Registro apagado",
+                actionLabel = "Desfazer",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoDelete(entry)
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(title = { Text(text = "Gustin Emotion Tracker") })
+            TopAppBar(
+                title = { Text(text = "Gustin Emotion Tracker") },
+                actions = {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Lembretes"
+                        )
+                    }
+                }
+            )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onExportClick,
@@ -73,13 +120,58 @@ fun HistoryScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                 }
                 items(entries, key = { it.id }) { entry ->
-                    MoodEntryItem(entry = entry)
+                    SwipeToDeleteItem(
+                        entry = entry,
+                        onDelete = ::deleteWithUndo
+                    )
                 }
                 item {
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToDeleteItem(
+    entry: MoodEntry,
+    onDelete: (MoodEntry) -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete(entry)
+                true
+            } else {
+                false
+            }
+        }
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = { DeleteBackground() }
+    ) {
+        MoodEntryItem(entry = entry)
+    }
+}
+
+@Composable
+private fun DeleteBackground(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFB00020), RoundedCornerShape(8.dp))
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Delete,
+            contentDescription = null,
+            tint = Color.White
+        )
     }
 }
 
@@ -103,6 +195,7 @@ private fun MoodEntryItem(entry: MoodEntry, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -20,4 +20,10 @@ interface MoodEntryDao {
 
     @Query("SELECT COUNT(*) FROM mood_entries WHERE timestamp BETWEEN :from AND :to")
     suspend fun countBetween(from: Long, to: Long): Int
+
+    @Query("DELETE FROM mood_entries WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM mood_entries")
+    suspend fun deleteAll()
 }

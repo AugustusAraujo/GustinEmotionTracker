@@ -8,7 +8,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.gustinemotiontracker.wear"
+        applicationId = "com.example.gustinemotiontracker"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
@@ -38,6 +38,7 @@ android {
 dependencies {
     implementation(project(":core"))
 
+    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -52,4 +53,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.play.services.wearable)
+
+    testImplementation(libs.junit)
 }

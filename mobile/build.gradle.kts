@@ -57,6 +57,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.play.services.wearable)
+    implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

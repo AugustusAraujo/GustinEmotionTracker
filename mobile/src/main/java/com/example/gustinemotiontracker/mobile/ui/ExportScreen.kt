@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gustinemotiontracker.mobile.chart.MoodChartRenderer
 import com.example.gustinemotiontracker.mobile.export.ExportPeriod
 import com.example.gustinemotiontracker.mobile.export.MoodCsvExporter
 import com.example.gustinemotiontracker.mobile.export.toMillisRange
@@ -159,7 +160,7 @@ fun ExportScreen(
                     scope.launch {
                         val entries = viewModel.entriesIn(period)
                         val file = MoodCsvExporter.createCsvFile(context, entries)
-                        shareCsv(context, file, entries.size)
+                        shareFile(context, file, "text/csv", entryCount = entries.size)
                         exporting = false
                     }
                 },
@@ -167,6 +168,28 @@ fun ExportScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(text = if (exporting) "Exportando…" else "Exportar CSV")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = {
+                    exporting = true
+                    scope.launch {
+                        val entries = viewModel.entriesIn(period)
+                        val file = MoodChartRenderer.createChartFile(
+                            context,
+                            entries,
+                            periodLabel(period)
+                        )
+                        shareFile(context, file, "image/png", entryCount = entries.size)
+                        exporting = false
+                    }
+                },
+                enabled = (count ?: 0) > 0 && !exporting,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = "Compartilhar gráfico")
             }
         }
     }
@@ -270,14 +293,23 @@ private fun DatePickerField(
 private fun formatEpochDay(epochDay: Long): String =
     dayFormat.format(LocalDate.ofEpochDay(epochDay))
 
-private fun shareCsv(context: Context, file: java.io.File, entryCount: Int) {
+private fun periodLabel(period: ExportPeriod): String {
+    val range = period.toMillisRange()
+    val zone = ZoneId.systemDefault()
+    val fmt = DateTimeFormatter.ofPattern("dd/MM")
+    val start = fmt.format(Instant.ofEpochMilli(range.first).atZone(zone))
+    val end = fmt.format(Instant.ofEpochMilli(range.last).atZone(zone))
+    return "$start – $end"
+}
+
+private fun shareFile(context: Context, file: java.io.File, mimeType: String, entryCount: Int) {
     val uri = FileProvider.getUriForFile(
         context,
         "${context.packageName}.fileprovider",
         file
     )
     val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/csv"
+        type = mimeType
         putExtra(Intent.EXTRA_STREAM, uri)
         putExtra(
             Intent.EXTRA_SUBJECT,
@@ -285,9 +317,9 @@ private fun shareCsv(context: Context, file: java.io.File, entryCount: Int) {
         )
         putExtra(
             Intent.EXTRA_TEXT,
-            "Exportação com $entryCount registro(s) de humor em CSV."
+            "Exportação com $entryCount registro(s) de humor."
         )
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "Exportar CSV"))
+    context.startActivity(Intent.createChooser(intent, "Compartilhar"))
 }

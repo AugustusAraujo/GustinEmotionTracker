@@ -1,18 +1,25 @@
 package com.example.gustinemotiontracker.wear
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.gustinemotiontracker.core.model.MoodEntry
 import com.example.gustinemotiontracker.core.model.Quadrant
 import com.example.gustinemotiontracker.wear.data.MoodSender
+import com.example.gustinemotiontracker.wear.data.PromptConfigStore
+import com.example.gustinemotiontracker.wear.scheduler.PromptScheduler
 import com.example.gustinemotiontracker.wear.ui.ConfirmationScreen
 import com.example.gustinemotiontracker.wear.ui.EmotionListScreen
 import com.example.gustinemotiontracker.wear.ui.QuadrantScreen
@@ -29,13 +36,33 @@ sealed interface Screen {
 }
 
 class MainActivity : ComponentActivity() {
+
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        reschedulePromptAlarms()
+        requestNotificationPermissionIfNeeded()
         setContent {
             WearAppTheme {
                 MoodTrackerApp()
             }
+        }
+    }
+
+    private fun reschedulePromptAlarms() {
+        val config = PromptConfigStore(this).load()
+        PromptScheduler(this).schedule(config)
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 }

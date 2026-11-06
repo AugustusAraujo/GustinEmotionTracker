@@ -12,4 +12,8 @@ class MoodRepository(private val dao: MoodEntryDao) {
     suspend fun entriesBetween(from: Long, to: Long): List<MoodEntry> = dao.getBetween(from, to)
 
     suspend fun countBetween(from: Long, to: Long): Int = dao.countBetween(from, to)
+
+    suspend fun deleteById(id: Long) = dao.deleteById(id)
+
+    suspend fun deleteAll() = dao.deleteAll()
 }
